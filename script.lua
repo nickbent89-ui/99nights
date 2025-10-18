@@ -492,6 +492,69 @@ local function MobileFly()
     end)
 end
 
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Remote Events
+local remoteStunEvent = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild("MonsterHitByTorch")
+local confirmCatchEvent = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild("ConfirmCatchItem")
+
+-- States and settings
+local stunToggle = false
+local stunRadius = 50
+
+local instantCatchToggle = false
+local instantCatchRadius = 50
+
+-- Auto Stun Deer loop
+local function autoStunDeer()
+    while stunToggle do
+        local character = LocalPlayer.Character
+        if character then
+            local hrp = character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                for _, mob in ipairs(Workspace.Characters:GetChildren()) do
+                    if mob.Name == "Deer" then
+                        local part = mob:FindFirstChildWhichIsA("BasePart")
+                        if part and (part.Position - hrp.Position).Magnitude <= stunRadius then
+                            pcall(function()
+                                remoteStunEvent:FireServer(mob)
+                            end)
+                        end
+                    end
+                end
+            end
+        end
+        task.wait(0.5)
+    end
+end
+
+-- Instant Catch Fish loop
+local function autoCatchFish()
+    while instantCatchToggle do
+        local character = LocalPlayer.Character
+        if character then
+            local hrp = character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                for _, fish in ipairs(Workspace.Items:GetChildren()) do
+                    if fish.Name == "Fish" then -- Adjust if necessary
+                        local part = fish:FindFirstChildWhichIsA("BasePart")
+                        if part and (part.Position - hrp.Position).Magnitude <= instantCatchRadius then
+                            pcall(function()
+                                confirmCatchEvent:FireServer(fish)
+                            end)
+                        end
+                    end
+                end
+            end
+        end
+        task.wait(0.3)
+    end
+end
+
 local Window = WindUI:CreateWindow({
     Title = "Rumz Hub",
     Icon = "sword",
@@ -1426,5 +1489,47 @@ Tabs.Info:Button({
             warn("Could not set clipboard:", err)
         end
         
+    end
+})
+
+Tabs.Auto:Section({ Title = "Auto Stun Deer", Icon = "bolt" })
+
+Tabs.Auto:Toggle({
+    Title = "Enable Auto Stun Deer",
+    Value = false,
+    Callback = function(state)
+        stunToggle = state
+        if state then
+            task.spawn(autoStunDeer)
+        end
+    end
+})
+
+Tabs.Auto:Slider({
+    Title = "Stun Radius",
+    Value = { Min = 10, Max = 200, Default = stunRadius },
+    Callback = function(value)
+        stunRadius = math.clamp(value, 10, 200)
+    end
+})
+
+Tabs.Auto:Section({ Title = "Instant Catch Fish", Icon = "fish" })
+
+Tabs.Auto:Toggle({
+    Title = "Enable Instant Catch",
+    Value = false,
+    Callback = function(state)
+        instantCatchToggle = state
+        if state then
+            task.spawn(autoCatchFish)
+        end
+    end
+})
+
+Tabs.Auto:Slider({
+    Title = "Catch Radius",
+    Value = { Min = 10, Max = 200, Default = instantCatchRadius },
+    Callback = function(value)
+        instantCatchRadius = math.clamp(value, 10, 200)
     end
 })
